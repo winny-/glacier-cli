@@ -110,13 +110,15 @@ public class Glacier {
                 // Not reached
             }
 
-            if (arguments.isEmpty ()) {
+            if (arguments.isEmpty()) {
                 throw new GlacierCliException("Must provide at least one command.");
             }
 
-            GlacierCliCommand command = GlacierCliCommand.get(arguments.get(0));
+            String commandName = arguments.get(0);
+            arguments = arguments.subList(1, arguments.size());
+            GlacierCliCommand command = GlacierCliCommand.get(commandName);
             if (command == null) {
-                throw new GlacierCliException("Invalid command given: " + arguments.get(0));
+                throw new GlacierCliException("Invalid command given: " + commandName);
             }
 
             String defaultPropertiesPath = System.getProperty("user.home") + "/AwsCredentials.properties";
@@ -129,56 +131,61 @@ public class Glacier {
 
                 // Archive commands
                 case UPLOAD:
-                    if (arguments.size() < 3) {
-                        throw new GlacierCliException("The upload command requires at least three parameters.");
+                    if (arguments.size() < 2) {
+                        throw new GlacierCliException("The upload command requires at least two parameters.");
                     }
-                    for (String archive : arguments.subList(2, arguments.size())) {
-                        glacier.upload(arguments.get(1), archive);
+                    String vaultName = arguments.get(0);
+                    for (String archive : arguments.subList(1, arguments.size())) {
+                        glacier.upload(vaultName, archive);
                     }
                     break;
 
                 case DELETE:
-                    if (arguments.size() != 3) {
-                        throw new GlacierCliException("The delete command requires exactly three parameters.");
+                    if (arguments.size() != 2) {
+                        throw new GlacierCliException("The delete command requires exactly two parameters.");
                     }
-                    glacier.delete(arguments.get(1), arguments.get(2));
+                    glacier.delete(arguments.get(0), arguments.get(1));
                     break;
 
                 case DOWNLOAD:
-                    if (arguments.size() != 4) {
-                        throw new GlacierCliException("The download command requires exactly four parameters.");
+                    if (arguments.size() != 3) {
+                        throw new GlacierCliException("The download command requires exactly three parameters.");
                     }
-                    glacier.download(arguments.get(1), arguments.get(2), arguments.get(3));
+                    glacier.download(arguments.get(0), arguments.get(1), arguments.get(2));
                     break;
 
                 // Vault commands
                 case CREATE_VAULT:
-                    if (arguments.size() != 2) {
+                    if (arguments.size() != 1) {
                         throw new GlacierCliException("The create-vault command requires exactly one parameter.");
                     }
-                    glacier.createVault(arguments.get(1));
+                    glacier.createVault(arguments.get(0));
                     break;
 
                 case DELETE_VAULT:
-                    if (arguments.size() != 2) {
-                        throw new GlacierCliException("The delete-vault command requires exactly two parameters.");
+                    if (arguments.size() != 1) {
+                        throw new GlacierCliException("The delete-vault command requires exactly one parameters.");
                     }
-                    glacier.deleteVault(arguments.get(1));
+                    glacier.deleteVault(arguments.get(0));
                     break;
 
                 case INVENTORY:
-                    if (arguments.size() != 2) {
-                        throw new GlacierCliException("The inventory command requires exactly two parameters.");
+                    if (arguments.size() != 1) {
+                        throw new GlacierCliException("The inventory command requires exactly one parameter.");
                     }
-                    glacier.inventory(arguments.get(1), cmd.getOptionValue("topic", "glacier"),
-                            cmd.getOptionValue("queue", "glacier"), cmd.getOptionValue("file", "glacier.json"));
+                    glacier.inventory(
+                        arguments.get(0),
+                        cmd.getOptionValue("topic", "glacier"),
+                        cmd.getOptionValue("queue", "glacier"),
+                        cmd.getOptionValue("file", "glacier.json")
+                    );
                     break;
 
                 case INFO:
-                    if (arguments.size() != 2) {
-                        throw new GlacierCliException("The info command requires exactly two parameters.");
+                    if (arguments.size() != 1) {
+                        throw new GlacierCliException("The info command requires exactly one parameter.");
                     }
-                    glacier.info(arguments.get(1));
+                    glacier.info(arguments.get(0));
                     break;
 
                 case LIST:
