@@ -94,7 +94,7 @@ public class Glacier {
         this.credentials = credentials;
         this.region = region;
         client = new AmazonGlacierClient(credentials);
-        client.setEndpoint("https://glacier." + region + ".amazonaws.com/");
+        client.setEndpoint(String.format("https://glacier.%s.amazonaws.com/", region));
     }
 
     public static void main(String[] args) throws Exception {
@@ -121,9 +121,10 @@ public class Glacier {
                 throw new GlacierCliException("Invalid command given: " + commandName);
             }
 
-            String defaultPropertiesPath = System.getProperty("user.home") + "/AwsCredentials.properties";
-            String propertiesPath = cmd.getOptionValue("properties", defaultPropertiesPath);
-            File props = new File(propertiesPath);
+            String propertiesArugment = cmd.getOptionValue("properties");
+            File props = (propertiesArugment != null) ? 
+                new File(propertiesArugment) :
+                new File(System.getProperty("user.home"), "AwsCredentials.properties");
             AWSCredentials credentials = new PropertiesCredentials(props);
             Glacier glacier = new Glacier(credentials, cmd.getOptionValue("region", "us-east-1"));
 
@@ -260,20 +261,20 @@ public class Glacier {
     // ================
 
     public void upload(String vaultName, String archive) {
-        String msg = "Uploading " + archive + " to Glacier vault " + vaultName;
+        String msg = String.format("Uploading %s to Glacier vault %s", archive, vaultName);
         System.out.println(msg);
 
         try {
             ArchiveTransferManager atm = new ArchiveTransferManager(client, credentials);
             UploadResult result = atm.upload(vaultName, archive, new File(archive));
-            System.out.println("Uploaded " + archive + ": " + result.getArchiveId());
+            System.out.println(String.format("Uploaded %s: %s", archive, result.getArchiveId()));
         } catch (Exception e) {
             throw new RuntimeException("Error " + msg, e);
         }
     }
 
     public void delete(String vaultName, String archiveId) {
-        String msg = "Deleting " + archiveId + " from Glacier vault " + vaultName;
+        String msg = String.format("Deleting %s from Glacier vault %s", archiveId, vaultName);
         System.out.println(msg);
 
         try {
@@ -285,13 +286,13 @@ public class Glacier {
     }
 
     public void download(String vaultName, String archiveId, String downloadFilePath) {
-        String msg = "Downloading " + archiveId + " from Glacier vault " + vaultName;
+        String msg = String.format("Downloading %s from Glacier vault %s", archiveId, vaultName);
         System.out.println(msg);
 
         sqsClient = new AmazonSQSClient(credentials);
-        sqsClient.setEndpoint("https://sqs." + region + ".amazonaws.com");
+        sqsClient.setEndpoint(String.format("https://sqs.%s.amazonaws.com", region));
         snsClient = new AmazonSNSClient(credentials);
-        snsClient.setEndpoint("https://sns." + region + ".amazonaws.com");
+        snsClient.setEndpoint(String.format("https://sns.%s.amazonaws.com", region));
 
         try {
             ArchiveTransferManager atm = new ArchiveTransferManager(client, sqsClient, snsClient);
@@ -306,12 +307,12 @@ public class Glacier {
     // ==============
 
     public void createVault(String vaultName) {
-        String msg = "Creating vault \"" + vaultName + "\" ...";
+        String msg = String.format("Creating vault \"%s\" ...", vaultName);
         System.out.println(msg);
 
         try {
             client.createVault(new CreateVaultRequest(vaultName));
-            System.out.println("Created vault: \"" + vaultName+ "\"");
+            System.out.println(String.format("Created vault: \"%s\"", vaultName));
         } catch (Exception e) {
             throw new RuntimeException("Error " + msg, e);
         }
@@ -334,9 +335,9 @@ public class Glacier {
         System.out.println(msg);
 
         sqsClient = new AmazonSQSClient(credentials);
-        sqsClient.setEndpoint("https://sqs." + region + ".amazonaws.com");
+        sqsClient.setEndpoint(String.format("https://sqs.%s.amazonaws.com", region));
         snsClient = new AmazonSNSClient(credentials);
-        snsClient.setEndpoint("https://sns." + region + ".amazonaws.com");
+        snsClient.setEndpoint(String.format("https://sns.%s.amazonaws.com", region));
 
         try {
             QueueConfig config = setupSQS(sqsQueueName);
@@ -362,16 +363,12 @@ public class Glacier {
     }
 
     public void info(String vaultName) {
-        String msg = "Info " + vaultName + "...";
+        String msg = String.format("Info %s...", vaultName);
         System.out.println(msg);
 
         try {
             DescribeVaultResult vaultdescribe = client.describeVault(new DescribeVaultRequest(vaultName));
-            System.out.println ("Vault : " + vaultName
-                            + "\n\tCreation date : " + vaultdescribe.getCreationDate()
-                            + "\n\tNumber of archives : " + vaultdescribe.getNumberOfArchives()
-                            + "\n\tVault size : " + vaultdescribe.getSizeInBytes()
-                            + "\n\tLast inventory date : " + vaultdescribe.getLastInventoryDate());
+            System.out.print(makeVaultDescriptionString(vaultdescribe));
         } catch (Exception e) {
             throw new RuntimeException("Error " + msg, e);
         }
@@ -387,11 +384,7 @@ public class Glacier {
             for (DescribeVaultOutput vault: vaults.getVaultList())
             {
                 System.out.println("----");
-                System.out.println("Vault : " + vault.getVaultName()
-                            + "\n\tCreation date : " + vault.getCreationDate()
-                            + "\n\tNumber of archives : " + vault.getNumberOfArchives()
-                            + "\n\tVault size : " + vault.getSizeInBytes()
-                            + "\n\tLast inventory date : " + vault.getLastInventoryDate());
+                System.out.print(makeVaultDescriptionString(vault));
             }
 
         } catch (Exception e) {
@@ -457,7 +450,7 @@ public class Glacier {
 
         while (!messageFound) {
             long minutes = (new Date().getTime() - start.getTime()) / 1000 / 60;
-            System.out.println("Checking for messages: " + minutes + " elapsed");
+            System.out.println(String.format("Checking for messages: %d elapsed", minutes));
             List<Message> msgs = sqsClient.receiveMessage(new ReceiveMessageRequest(sqsQueueUrl).withMaxNumberOfMessages(10)).getMessages();
 
             if (msgs.size() > 0) {
@@ -504,6 +497,38 @@ public class Glacier {
         snsClient.unsubscribe(new UnsubscribeRequest(config.snsSubscriptionARN));
         snsClient.deleteTopic(new DeleteTopicRequest(config.snsTopicARN));
         sqsClient.deleteQueue(new DeleteQueueRequest(config.sqsQueueURL));
+    }
+
+    private String makeVaultDescriptionString(DescribeVaultResult vault) {
+        String sep = System.getProperty("line.separator");
+        return String.format(
+            "Vault : %s%s" +
+            "\tCreation date : %s%s" +
+            "\tNumber of archives : %s%s" +
+            "\tVault size : %s%s" +
+            "\tLast inventory date : %s%s",
+            vault.getVaultName(), sep,
+            vault.getCreationDate(), sep,
+            vault.getNumberOfArchives(), sep,
+            vault.getSizeInBytes(), sep,
+            vault.getLastInventoryDate(), sep
+        );
+    }
+
+    private String makeVaultDescriptionString(DescribeVaultOutput vault) {
+        String sep = System.getProperty("line.separator");
+        return String.format(
+            "Vault : %s%s" +
+            "\tCreation date : %s%s" +
+            "\tNumber of archives : %s%s" +
+            "\tVault size : %s%s" +
+            "\tLast inventory date : %s%s",
+            vault.getVaultName(), sep,
+            vault.getCreationDate(), sep,
+            vault.getNumberOfArchives(), sep,
+            vault.getSizeInBytes(), sep,
+            vault.getLastInventoryDate(), sep
+        );
     }
 
     class QueueConfig {
