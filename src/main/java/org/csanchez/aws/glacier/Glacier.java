@@ -500,34 +500,42 @@ public class Glacier {
     }
 
     private String makeVaultDescriptionString(DescribeVaultResult vault) {
-        String sep = System.getProperty("line.separator");
-        return String.format(
-            "Vault : %s%s" +
-            "\tCreation date : %s%s" +
-            "\tNumber of archives : %s%s" +
-            "\tVault size : %s%s" +
-            "\tLast inventory date : %s%s",
-            vault.getVaultName(), sep,
-            vault.getCreationDate(), sep,
-            vault.getNumberOfArchives(), sep,
-            vault.getSizeInBytes(), sep,
-            vault.getLastInventoryDate(), sep
+        return makeVaultDescriptionStringFromStrings(
+            vault.getVaultName(),
+            vault.getCreationDate(),
+            vault.getNumberOfArchives(),
+            vault.getSizeInBytes(),
+            vault.getLastInventoryDate()
         );
     }
 
     private String makeVaultDescriptionString(DescribeVaultOutput vault) {
+        return makeVaultDescriptionStringFromStrings(
+            vault.getVaultName(),
+            vault.getCreationDate(),
+            vault.getNumberOfArchives(),
+            vault.getSizeInBytes(),
+            vault.getLastInventoryDate()
+        );
+    }
+
+    private String makeVaultDescriptionStringFromStrings(String name,
+                                                         String creationDate,
+                                                         Long numberOfArchives,
+                                                         Long size,
+                                                         String lastInventoryDate) {
         String sep = System.getProperty("line.separator");
         return String.format(
             "Vault : %s%s" +
             "\tCreation date : %s%s" +
-            "\tNumber of archives : %s%s" +
-            "\tVault size : %s%s" +
+            "\tNumber of archives : %d%s" +
+            "\tVault size : %d%s" +
             "\tLast inventory date : %s%s",
-            vault.getVaultName(), sep,
-            vault.getCreationDate(), sep,
-            vault.getNumberOfArchives(), sep,
-            vault.getSizeInBytes(), sep,
-            vault.getLastInventoryDate(), sep
+            name, sep,
+            creationDate, sep,
+            numberOfArchives, sep,
+            size, sep,
+            lastInventoryDate, sep
         );
     }
 
